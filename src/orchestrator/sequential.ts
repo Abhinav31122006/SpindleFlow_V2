@@ -3,6 +3,11 @@ import { ContextStore } from "../context/store";
 import { buildPrompt } from "../prompt/builder";
 import { LLMProvider } from "../llm/provider";
 import { printAgentStart, printAgentComplete } from "../reporter/console";
+import {
+  logAgentExecution,
+  logDataTransfer,
+  orchestratorLogger,
+} from "../logger/enhanced-logger";
 
 export async function runSequentialWorkflow(params: {
   steps: { agent: string }[];
@@ -12,15 +17,111 @@ export async function runSequentialWorkflow(params: {
 }) {
   const { steps, registry, context, llm } = params;
 
-  for (const step of steps) {
+  orchestratorLogger.info({
+    event: "SEQUENTIAL_WORKFLOW_START",
+    totalSteps: steps.length,
+    steps: steps.map(s => s.agent),
+    timestamp: Date.now(),
+  }, `🚀 Starting sequential workflow with ${steps.length} steps`);
+
+  for (let i = 0; i < steps.length; i++) {
+    const step = steps[i];
+    const stepNumber = i + 1;
+
+    orchestratorLogger.info({
+      event: "STEP_START",
+      stepNumber,
+      totalSteps: steps.length,
+      agentId: step.agent,
+      timestamp: Date.now(),
+    }, `📍 Step ${stepNumber}/${steps.length}: ${step.agent}`);
+
+    // Retrieve agent from registry
+    orchestratorLogger.debug({
+      event: "AGENT_LOOKUP",
+      stepNumber,
+      agentId: step.agent,
+    }, `🔍 Looking up agent: ${step.agent}`);
+
     const agent = registry.getAgent(step.agent);
+
+    logDataTransfer(
+      "AgentRegistry",
+      "SequentialOrchestrator",
+      { agentId: agent.id, role: agent.role },
+      "explicit"
+    );
+
+    orchestratorLogger.debug({
+      event: "AGENT_FOUND",
+      stepNumber,
+      agentId: agent.id,
+      role: agent.role,
+      goal: agent.goal,
+    }, `✅ Agent found: ${agent.role}`);
 
     // Print start message
     printAgentStart(agent.id, agent.role);
+    logAgentExecution(agent.id, agent.role, "START", {
+      stepNumber,
+      totalSteps: steps.length,
+    });
 
     const startedAt = Date.now();
+    orchestratorLogger.debug({
+      event: "AGENT_EXECUTION_START",
+      stepNumber,
+      agentId: agent.id,
+      timestamp: startedAt,
+    }, `⚙️ Executing agent: ${agent.id}`);
+
+    // Build prompt
+    orchestratorLogger.debug({
+      event: "PROMPT_BUILD_TRIGGER",
+      stepNumber,
+      agentId: agent.id,
+    }, `📝 Triggering prompt build for: ${agent.id}`);
+
+    const contextSnapshot = context.getContext();
+    logDataTransfer(
+      "ContextStore",
+      `Agent:${agent.id}`,
+      contextSnapshot,
+      "implicit"
+    );
 
     const prompt = buildPrompt(agent, context);
+
+    logDataTransfer(
+      "PromptBuilder",
+      `Agent:${agent.id}`,
+      { system: prompt.system, user: prompt.user },
+      "explicit"
+    );
+
+    orchestratorLogger.debug({
+      event: "PROMPT_BUILD_COMPLETE",
+      stepNumber,
+      agentId: agent.id,
+      systemLength: prompt.system.length,
+      userLength: prompt.user.length,
+    }, `✅ Prompt built for: ${agent.id}`);
+
+    // Call LLM
+    logAgentExecution(agent.id, agent.role, "PROCESSING", {
+      stepNumber,
+      promptLengths: {
+        system: prompt.system.length,
+        user: prompt.user.length,
+      },
+    });
+
+    orchestratorLogger.info({
+      event: "LLM_CALL_TRIGGER",
+      stepNumber,
+      agentId: agent.id,
+      llmProvider: llm.name,
+    }, `🤖 Calling LLM for: ${agent.id}`);
 
     const output = await llm.generate({
       system: prompt.system,
@@ -29,11 +130,48 @@ export async function runSequentialWorkflow(params: {
     });
 
     const endedAt = Date.now();
+    const duration = endedAt - startedAt;
 
-    // Store output
-    context.outputs[agent.id] = output;
+    orchestratorLogger.info({
+      event: "AGENT_EXECUTION_COMPLETE",
+      stepNumber,
+      agentId: agent.id,
+      duration,
+      outputLength: output.length,
+      timestamp: endedAt,
+    }, `✅ Agent completed: ${agent.id} (${duration}ms)`);
+
+    logDataTransfer(
+      `LLM:${llm.name}`,
+      `Agent:${agent.id}`,
+      { output },
+      "explicit"
+    );
+
+    // Store output in context
+    orchestratorLogger.debug({
+      event: "STORE_OUTPUT",
+      stepNumber,
+      agentId: agent.id,
+      outputLength: output.length,
+    }, `💾 Storing output for: ${agent.id}`);
+
+    context.setOutput(agent.id, output);
+
+    logDataTransfer(
+      `Agent:${agent.id}`,
+      "ContextStore",
+      { output },
+      "explicit"
+    );
 
     // Add timeline entry
+    orchestratorLogger.debug({
+      event: "ADD_TIMELINE",
+      stepNumber,
+      agentId: agent.id,
+    }, `⏱️ Adding timeline entry for: ${agent.id}`);
+
     const entry = {
       agentId: agent.id,
       role: agent.role,
@@ -41,9 +179,31 @@ export async function runSequentialWorkflow(params: {
       startedAt,
       endedAt,
     };
-    context.timeline.push(entry);
+
+    context.addTimelineEntry(entry);
+
+    logAgentExecution(agent.id, agent.role, "COMPLETE", {
+      stepNumber,
+      duration,
+      outputLength: output.length,
+    });
 
     // Print completion message
     printAgentComplete(entry);
+
+    orchestratorLogger.info({
+      event: "STEP_COMPLETE",
+      stepNumber,
+      totalSteps: steps.length,
+      agentId: agent.id,
+      duration,
+      remainingSteps: steps.length - stepNumber,
+    }, `✅ Step ${stepNumber}/${steps.length} complete (${steps.length - stepNumber} remaining)`);
   }
+
+  orchestratorLogger.info({
+    event: "SEQUENTIAL_WORKFLOW_COMPLETE",
+    totalSteps: steps.length,
+    timestamp: Date.now(),
+  }, `🎉 Sequential workflow complete (${steps.length} steps executed)`);
 }
