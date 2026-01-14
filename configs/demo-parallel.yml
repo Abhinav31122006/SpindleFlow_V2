@@ -1,0 +1,20 @@
+agents:
+  - id: backend
+    role: Backend Engineer
+    goal: Propose a REST API design for an EV platform
+
+  - id: frontend
+    role: Frontend Engineer
+    goal: Propose a UI layout for an EV platform
+
+  - id: reviewer
+    role: Tech Lead
+    goal: Consolidate backend and frontend proposals into one final plan
+
+workflow:
+  type: parallel
+  branches:
+    - backend
+    - frontend
+  then:
+    agent: reviewer
