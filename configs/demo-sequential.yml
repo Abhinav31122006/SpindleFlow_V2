@@ -1,14 +1,19 @@
 agents:
-  - id: researcher
-    role: Research Assistant
-    goal: Find key insights about electric vehicles
+  - id: analyst
+    role: Product Analyst
+    goal: Analyze the problem and identify key user needs and constraints
 
-  - id: writer
-    role: Content Writer
-    goal: Write a concise summary using the research
+  - id: designer
+    role: UX Designer
+    goal: Propose a user-friendly solution based on the analysis
+
+  - id: strategist
+    role: Product Strategist
+    goal: Summarize the solution and suggest a clear product direction
 
 workflow:
   type: sequential
   steps:
-    - agent: researcher
-    - agent: writer
+    - agent: analyst
+    - agent: designer
+    - agent: strategist

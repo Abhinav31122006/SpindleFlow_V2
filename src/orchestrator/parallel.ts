@@ -2,6 +2,12 @@ import { AgentRegistry } from "../agents/registry";
 import { ContextStore } from "../context/store";
 import { buildPrompt } from "../prompt/builder";
 import { LLMProvider } from "../llm/provider";
+import {
+  printParallelStart,
+  printParallelComplete,
+  printAggregatorStart,
+  printAgentComplete,
+} from "../reporter/console";
 
 export async function runParallelWorkflow(params: {
   branches: string[];
@@ -12,7 +18,12 @@ export async function runParallelWorkflow(params: {
 }) {
   const { branches, then, registry, context, llm } = params;
 
-  // --- Run branch agents in parallel ---
+  // Print parallel execution start
+  printParallelStart(branches);
+
+  const parallelStartTime = Date.now();
+
+  // Run branch agents in parallel
   const branchResults = await Promise.all(
     branches.map(async (agentId) => {
       const agent = registry.getAgent(agentId);
@@ -38,14 +49,27 @@ export async function runParallelWorkflow(params: {
     })
   );
 
-  // --- Merge branch outputs into context ---
+  const parallelEndTime = Date.now();
+  const parallelDuration = parallelEndTime - parallelStartTime;
+
+  // Merge branch outputs into context
   for (const result of branchResults) {
     context.outputs[result.agentId] = result.output;
     context.timeline.push(result);
   }
 
-  // --- Run the final "then" agent ---
+  // Print parallel completion
+  printParallelComplete(branchResults.length, parallelDuration);
+
+  // Print individual branch outputs
+  for (const result of branchResults) {
+    printAgentComplete(result);
+  }
+
+  // Run the final "then" agent (aggregator)
   const finalAgent = registry.getAgent(then.agent);
+  printAggregatorStart(finalAgent.id, finalAgent.role);
+
   const startedAt = Date.now();
 
   const finalPrompt = buildPrompt(finalAgent, context);
@@ -59,11 +83,17 @@ export async function runParallelWorkflow(params: {
   const endedAt = Date.now();
 
   context.outputs[finalAgent.id] = finalOutput;
-  context.timeline.push({
+  
+  const finalEntry = {
     agentId: finalAgent.id,
     role: finalAgent.role,
     output: finalOutput,
     startedAt,
     endedAt,
-  });
+  };
+  
+  context.timeline.push(finalEntry);
+
+  // Print aggregator completion
+  printAgentComplete(finalEntry);
 }

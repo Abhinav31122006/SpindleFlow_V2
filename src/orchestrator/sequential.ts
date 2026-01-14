@@ -2,6 +2,7 @@ import { AgentRegistry } from "../agents/registry";
 import { ContextStore } from "../context/store";
 import { buildPrompt } from "../prompt/builder";
 import { LLMProvider } from "../llm/provider";
+import { printAgentStart, printAgentComplete } from "../reporter/console";
 
 export async function runSequentialWorkflow(params: {
   steps: { agent: string }[];
@@ -13,6 +14,9 @@ export async function runSequentialWorkflow(params: {
 
   for (const step of steps) {
     const agent = registry.getAgent(step.agent);
+
+    // Print start message
+    printAgentStart(agent.id, agent.role);
 
     const startedAt = Date.now();
 
@@ -26,16 +30,20 @@ export async function runSequentialWorkflow(params: {
 
     const endedAt = Date.now();
 
-    // store output
+    // Store output
     context.outputs[agent.id] = output;
 
-    // add timeline entry
-    context.timeline.push({
+    // Add timeline entry
+    const entry = {
       agentId: agent.id,
       role: agent.role,
       output,
       startedAt,
       endedAt,
-    });
+    };
+    context.timeline.push(entry);
+
+    // Print completion message
+    printAgentComplete(entry);
   }
 }
