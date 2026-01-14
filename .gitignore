@@ -1,0 +1,15 @@
+# Node
+node_modules/
+
+# Build output
+dist/
+
+# Env files
+.env
+
+# Logs
+*.log
+
+# OS / Editor junk
+.DS_Store
+.vscode/
