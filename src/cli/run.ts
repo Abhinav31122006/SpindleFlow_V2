@@ -17,6 +17,11 @@ import {
   logger,
   clearLogBuffer,
 } from "../logger/enhanced-logger";
+import {
+  buildExecutionGraph,
+  buildContextGraph,
+  buildTimingGraph,
+} from "../visualization";
 
 export async function runCommand(
   configPath: string,
@@ -142,6 +147,9 @@ export async function runCommand(
 
     // 9. Print final output
     printFinalOutput(context);
+    console.log("\n" + buildExecutionGraph(context.timeline));
+    console.log("\n" + buildContextGraph(context));
+    console.log("\n" + buildTimingGraph(context.timeline));
 
     const endTime = Date.now();
     const totalDuration = endTime - startTime;

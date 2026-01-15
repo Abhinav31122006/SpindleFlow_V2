@@ -3,6 +3,7 @@ import { Command } from "commander";
 import * as dotenv from "dotenv";
 import { runCommand } from "./cli/run";
 
+
 dotenv.config();
 
 const program = new Command();
