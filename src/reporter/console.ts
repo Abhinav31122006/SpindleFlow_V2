@@ -1,7 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
 import { ContextStore, TimelineEntry } from "../context/store";
-import { writeLogsToFile } from "../logger/enhanced-logger";
 
 // Color codes for terminal output
 const colors = {
@@ -144,10 +143,7 @@ ${"=".repeat(80)}
 
   fs.writeFileSync(filename, content.trim(), "utf-8");
   
-  // Also write detailed execution logs to a separate file
-  const logFile = writeLogsToFile();
-  
-  return { summaryFile: filename, logFile };
+  return filename;
 }
 
 export function printWorkflowStart(userInput: string) {
@@ -258,12 +254,11 @@ export function printFinalOutput(context: ContextStore) {
   
   // Save all outputs
   const finalFile = writeFinalOutput(context);
-  const { summaryFile, logFile } = writeExecutionSummary(context);
+  const summaryFile = writeExecutionSummary(context);
   
   console.log(`  ${colors.bright}${colors.cyan}📁 Output Files:${colors.reset}`);
   console.log(`    ${colors.green}✓${colors.reset} Final Output: ${colors.cyan}${finalFile}${colors.reset}`);
   console.log(`    ${colors.green}✓${colors.reset} Execution Summary: ${colors.cyan}${summaryFile}${colors.reset}`);
-  console.log(`    ${colors.green}✓${colors.reset} Execution Logs: ${colors.cyan}${logFile}${colors.reset}`);
   console.log(`    ${colors.green}✓${colors.reset} Individual Agents: ${colors.cyan}${OUTPUT_DIR}/[1-N]_*.txt${colors.reset}`);
   console.log();
   

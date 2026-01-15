@@ -15,7 +15,6 @@ import {
   agentLogger,
   orchestratorLogger,
   logger,
-  clearLogBuffer,
 } from "../logger/enhanced-logger";
 import {
   buildExecutionGraph,
@@ -32,8 +31,6 @@ export async function runCommand(
 ) {
   const startTime = Date.now();
   
-  // Clear previous log buffer for fresh run
-  clearLogBuffer();
   logger.info(
     {
       event: "API_KEY_STATUS",

@@ -1,19 +1,19 @@
 agents:
-  - id: analyst
-    role: Product Analyst
-    goal: Analyze the problem and identify key user needs and constraints
+  - id: architect
+    role: System Architect
+    goal: Break down the problem and propose a high-level system architecture
 
-  - id: designer
-    role: UX Designer
-    goal: Propose a user-friendly solution based on the analysis
+  - id: engineer
+    role: Software Engineer
+    goal: Translate the architecture into concrete components and data flows
 
-  - id: strategist
-    role: Product Strategist
-    goal: Summarize the solution and suggest a clear product direction
+  - id: reviewer
+    role: Technical Reviewer
+    goal: Review the proposed system, highlight risks, and suggest improvements
 
 workflow:
   type: sequential
   steps:
-    - agent: analyst
-    - agent: designer
-    - agent: strategist
+    - agent: architect
+    - agent: engineer
+    - agent: reviewer
