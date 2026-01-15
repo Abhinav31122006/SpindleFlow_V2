@@ -163,13 +163,10 @@ export async function runCommand(
     printFinalOutput(context);
     // ── Base output directory ──
     const baseOutputDir = "output";
-    // ── Build graphs once ──
-    const executionGraph = buildExecutionGraph(context.timeline);
-    const contextGraph = buildContextGraph(context);
-    const timingGraph = buildTimingGraph(context.timeline);
-  
-    // ── Parallel execution graph (only for parallel workflows) ──
+    
+    // ── Render graphs based on workflow type ──
     if (parsed.workflow.type === "parallel") {
+      // Parallel workflow: only render parallel execution graph
       const parallelExecutionGraph =
         buildParallelExecutionGraph(context.timeline);
 
@@ -188,34 +185,34 @@ export async function runCommand(
         },
         "🧩 Parallel execution graph saved"
       );
+    } else {
+      // Sequential workflow: render sequential graphs
+      const executionGraph = buildExecutionGraph(context.timeline);
+      const contextGraph = buildContextGraph(context);
+      const timingGraph = buildTimingGraph(context.timeline);
+
+      // ── Print to console ──
+      console.log("\n" + executionGraph);
+      console.log("\n" + contextGraph);
+      console.log("\n" + timingGraph);
+
+      // ── Save to files ──
+      saveGraph(baseOutputDir, "execution_graph.txt", executionGraph);
+      saveGraph(baseOutputDir, "context_graph.txt", contextGraph);
+      saveGraph(baseOutputDir, "timing_graph.txt", timingGraph);
+
+      logger.info(
+        {
+          event: "GRAPHS_SAVED",
+          files: [
+            "output/graphs/execution_graph.txt",
+            "output/graphs/context_graph.txt",
+            "output/graphs/timing_graph.txt",
+          ],
+        },
+        "📊 ASCII graphs saved to output/graphs/"
+      );
     }
-
-    // ── Print to console ──
-    console.log("\n" + executionGraph);
-    console.log("\n" + contextGraph);
-    console.log("\n" + timingGraph);
-
-    // ── Save to files ──
-    
-
-    saveGraph(baseOutputDir, "execution_graph.txt", executionGraph);
-    saveGraph(baseOutputDir, "context_graph.txt", contextGraph);
-    saveGraph(baseOutputDir, "timing_graph.txt", timingGraph);
-
-    logger.info(
-      {
-        event: "GRAPHS_SAVED",
-        files: [
-      "output/graphs/execution_graph.txt",
-      "output/graphs/context_graph.txt",
-      "output/graphs/timing_graph.txt",
-      ...(parsed.workflow.type === "parallel"
-        ? ["output/graphs/parallel_execution_graph.txt"]
-        : []),
-    ],
-      },
-      "📊 ASCII graphs saved to output/graphs/"
-    );
 
     const endTime = Date.now();
     const totalDuration = endTime - startTime;
