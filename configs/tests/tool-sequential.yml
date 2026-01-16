@@ -1,0 +1,39 @@
+# Test: Sequential workflow with tool invocation
+# This demonstrates basic tool invocation in a sequential flow
+# Each agent declares tools that will be invoked before their reasoning
+
+agents:
+  - id: data_collector
+    role: Data Collection Specialist
+    goal: Gather and process initial data using Python analytics
+    tools:
+      - python
+      - sql
+
+  - id: code_analyzer
+    role: Code Analysis Engineer
+    goal: Analyze code patterns and suggest improvements using multiple languages
+    tools:
+      - javascript
+      - rust
+      - cpp
+
+  - id: system_integrator
+    role: System Integration Architect
+    goal: Design integration approach using shell and HTTP capabilities
+    tools:
+      - shell
+      - http
+
+  - id: final_reviewer
+    role: Technical Review Lead
+    goal: Review all findings and provide comprehensive recommendations
+    # No tools - pure reasoning agent
+
+workflow:
+  type: sequential
+  steps:
+    - agent: data_collector
+    - agent: code_analyzer
+    - agent: system_integrator
+    - agent: final_reviewer

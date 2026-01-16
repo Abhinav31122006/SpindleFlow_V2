@@ -4,7 +4,8 @@ import { logPromptConstruction, logDataTransfer, promptLogger } from "../logger/
 
 export function buildPrompt(
   agent: Agent,
-  context: ContextStore
+  context: ContextStore,
+  toolOutputs?: string
 ): { system: string; user: string } {
   promptLogger.info({
     event: "PROMPT_BUILD_START",
@@ -73,6 +74,24 @@ Follow the goal strictly. Be concise, clear, and relevant.
   );
 
   let userPrompt = `User input:\n${context.userInput}\n`;
+
+  // Add tool outputs if any exist
+  if (toolOutputs) {
+    promptLogger.info({
+      event: "ADDING_TOOL_OUTPUTS",
+      agentId: agent.id,
+      toolOutputLength: toolOutputs.length,
+    }, `🔧 Adding tool outputs to prompt (${toolOutputs.length} chars)`);
+
+    userPrompt += toolOutputs;
+
+    logDataTransfer(
+      "ToolInvoker",
+      "PromptBuilder",
+      { toolOutputs },
+      "explicit"
+    );
+  }
 
   // Add previous agent outputs if any exist
   const previousOutputs = context.getPreviousOutputs();

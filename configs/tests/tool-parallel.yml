@@ -1,0 +1,40 @@
+# Test: Parallel workflow with tool invocation
+# This demonstrates tool invocation in parallel branches and aggregator
+# Tools are invoked concurrently in each branch
+
+agents:
+  - id: python_researcher
+    role: Python Research Analyst
+    goal: Conduct research using Python data processing
+    tools:
+      - python
+      - sql
+
+  - id: javascript_developer
+    role: JavaScript Development Expert
+    goal: Analyze JavaScript implementation patterns
+    tools:
+      - javascript
+
+  - id: rust_specialist
+    role: Rust Performance Specialist
+    goal: Evaluate performance characteristics using Rust
+    tools:
+      - rust
+      - cpp
+
+  - id: integration_summarizer
+    role: Integration Summary Lead
+    goal: Synthesize findings from all branches using Java and HTTP
+    tools:
+      - java
+      - http
+
+workflow:
+  type: parallel
+  branches:
+    - python_researcher
+    - javascript_developer
+    - rust_specialist
+  then:
+    agent: integration_summarizer

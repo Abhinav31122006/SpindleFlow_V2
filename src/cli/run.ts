@@ -180,24 +180,36 @@ export async function runCommand(
     
     // ── Render graphs based on workflow type ──
     if (parsed.workflow.type === "parallel") {
-      // Parallel workflow: only render parallel execution graph
+      // Parallel workflow: render parallel execution graph + context graph + timing graph
       const parallelExecutionGraph =
         buildParallelExecutionGraph(context.timeline);
+      const contextGraph = buildContextGraph(context);
+      const timingGraph = buildTimingGraph(context.timeline);
 
+      // ── Print to console ──
       console.log("\n" + parallelExecutionGraph);
+      console.log("\n" + contextGraph);
+      console.log("\n" + timingGraph);
 
+      // ── Save to files ──
       saveGraph(
         baseOutputDir,
         "parallel_execution_graph.txt",
         parallelExecutionGraph
       );
+      saveGraph(baseOutputDir, "context_graph.txt", contextGraph);
+      saveGraph(baseOutputDir, "timing_graph.txt", timingGraph);
 
       logger.info(
         {
-          event: "PARALLEL_GRAPH_SAVED",
-          file: "output/graphs/parallel_execution_graph.txt",
+          event: "PARALLEL_GRAPHS_SAVED",
+          files: [
+            "output/graphs/parallel_execution_graph.txt",
+            "output/graphs/context_graph.txt",
+            "output/graphs/timing_graph.txt",
+          ],
         },
-        "🧩 Parallel execution graph saved"
+        "🧩 Parallel workflow graphs saved to output/graphs/"
       );
     } else {
       // Sequential workflow: render sequential graphs

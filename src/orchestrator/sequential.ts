@@ -2,6 +2,7 @@ import { AgentRegistry } from "../agents/registry";
 import { ContextStore } from "../context/store";
 import { buildPrompt } from "../prompt/builder";
 import { LLMProvider } from "../llm/provider";
+import { ToolInvoker } from "../tools/invoker";
 import { printAgentStart, printAgentComplete } from "../reporter/console";
 import {
   logAgentExecution,
@@ -75,6 +76,40 @@ export async function runSequentialWorkflow(params: {
       timestamp: startedAt,
     }, `⚙️ Executing agent: ${agent.id}`);
 
+    // Invoke tools if declared
+    let toolOutputs = "";
+    if (agent.tools && agent.tools.length > 0) {
+      orchestratorLogger.info({
+        event: "TOOL_INVOCATION_START",
+        stepNumber,
+        agentId: agent.id,
+        tools: agent.tools,
+      }, `🔧 Invoking ${agent.tools.length} tools: ${agent.tools.join(", ")}`);
+
+      const toolInvoker = new ToolInvoker();
+      const toolResults = await toolInvoker.invokeTools(agent.tools, {
+        userInput: context.userInput,
+        previousOutputs: context.getPreviousOutputs(),
+      });
+
+      toolOutputs = toolInvoker.formatToolResults(toolResults);
+
+      orchestratorLogger.info({
+        event: "TOOL_INVOCATION_COMPLETE",
+        stepNumber,
+        agentId: agent.id,
+        toolCount: toolResults.length,
+        totalDuration: toolResults.reduce((sum, r) => sum + r.duration, 0),
+      }, `✅ Tools invoked: ${toolResults.length} tools executed`);
+
+      logDataTransfer(
+        "ToolInvoker",
+        `Agent:${agent.id}`,
+        { toolResults },
+        "explicit"
+      );
+    }
+
     // Build prompt
     orchestratorLogger.debug({
       event: "PROMPT_BUILD_TRIGGER",
@@ -90,7 +125,7 @@ export async function runSequentialWorkflow(params: {
       "implicit"
     );
 
-    const prompt = buildPrompt(agent, context);
+    const prompt = buildPrompt(agent, context, toolOutputs);
 
     logDataTransfer(
       "PromptBuilder",

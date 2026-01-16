@@ -2,6 +2,7 @@ import { AgentRegistry } from "../agents/registry";
 import { ContextStore } from "../context/store";
 import { buildPrompt } from "../prompt/builder";
 import { LLMProvider } from "../llm/provider";
+import { ToolInvoker } from "../tools/invoker";
 import {
   printParallelStart,
   printParallelComplete,
@@ -85,6 +86,39 @@ export async function runParallelWorkflow(params: {
       executionMode: "parallel",
     });
 
+    // Invoke tools if declared
+    let toolOutputs = "";
+    if (agent.tools && agent.tools.length > 0) {
+      orchestratorLogger.info({
+        event: "TOOL_INVOCATION_START",
+        branchNumber,
+        agentId: agent.id,
+        tools: agent.tools,
+      }, `🔧 Invoking ${agent.tools.length} tools for branch: ${agent.tools.join(", ")}`);
+
+      const toolInvoker = new ToolInvoker();
+      const toolResults = await toolInvoker.invokeTools(agent.tools, {
+        userInput: context.userInput,
+        previousOutputs: context.getPreviousOutputs(),
+      });
+
+      toolOutputs = toolInvoker.formatToolResults(toolResults);
+
+      orchestratorLogger.info({
+        event: "TOOL_INVOCATION_COMPLETE",
+        branchNumber,
+        agentId: agent.id,
+        toolCount: toolResults.length,
+      }, `✅ Tools invoked for branch: ${toolResults.length} tools executed`);
+
+      logDataTransfer(
+        "ToolInvoker",
+        `Branch:${agent.id}`,
+        { toolResults },
+        "explicit"
+      );
+    }
+
     // Build prompt
     orchestratorLogger.debug({
       event: "PROMPT_BUILD_TRIGGER",
@@ -100,7 +134,7 @@ export async function runParallelWorkflow(params: {
       "implicit"
     );
 
-    const prompt = buildPrompt(agent, context);
+    const prompt = buildPrompt(agent, context, toolOutputs);
 
     logDataTransfer(
       "PromptBuilder",
@@ -249,6 +283,39 @@ export async function runParallelWorkflow(params: {
 
   const startedAt = Date.now();
 
+  // Invoke tools if declared for aggregator
+  let aggregatorToolOutputs = "";
+  if (finalAgent.tools && finalAgent.tools.length > 0) {
+    orchestratorLogger.info({
+      event: "TOOL_INVOCATION_START",
+      agentId: finalAgent.id,
+      tools: finalAgent.tools,
+      phase: "aggregation",
+    }, `🔧 Invoking ${finalAgent.tools.length} tools for aggregator: ${finalAgent.tools.join(", ")}`);
+
+    const toolInvoker = new ToolInvoker();
+    const toolResults = await toolInvoker.invokeTools(finalAgent.tools, {
+      userInput: context.userInput,
+      previousOutputs: context.getPreviousOutputs(),
+    });
+
+    aggregatorToolOutputs = toolInvoker.formatToolResults(toolResults);
+
+    orchestratorLogger.info({
+      event: "TOOL_INVOCATION_COMPLETE",
+      agentId: finalAgent.id,
+      toolCount: toolResults.length,
+      phase: "aggregation",
+    }, `✅ Tools invoked for aggregator: ${toolResults.length} tools executed`);
+
+    logDataTransfer(
+      "ToolInvoker",
+      `Aggregator:${finalAgent.id}`,
+      { toolResults },
+      "explicit"
+    );
+  }
+
   orchestratorLogger.debug({
     event: "AGGREGATOR_PROMPT_BUILD",
     agentId: finalAgent.id,
@@ -262,7 +329,7 @@ export async function runParallelWorkflow(params: {
     "implicit"
   );
 
-  const finalPrompt = buildPrompt(finalAgent, context);
+  const finalPrompt = buildPrompt(finalAgent, context, aggregatorToolOutputs);
 
   logDataTransfer(
     "PromptBuilder",
