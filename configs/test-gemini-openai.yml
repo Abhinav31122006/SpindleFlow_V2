@@ -1,0 +1,37 @@
+models:
+  gemini:
+    provider: gemini
+    model: gemini-flash-latest
+    max_tokens: 8000
+  openai:
+    provider: openai
+    model: gpt-4o-mini
+    max_tokens: 4096
+
+provider: openai
+
+agents:
+  - id: researcher
+    role: "Market Researcher"
+    goal: "Research and analyze market trends for the given topic"
+    tools:
+      - web_search
+      - data_analysis
+
+  - id: analyst
+    role: "Data Analyst"
+    goal: "Analyze the research data and provide insights"
+    tools:
+      - data_analysis
+      - visualization
+
+  - id: writer
+    role: "Technical Writer"
+    goal: "Write a comprehensive summary based on the analysis"
+
+workflow:
+  type: sequential
+  steps:
+    - agent: researcher
+    - agent: analyst
+    - agent: writer

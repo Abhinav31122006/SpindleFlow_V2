@@ -2,6 +2,18 @@
 # This demonstrates tool invocation in parallel branches and aggregator
 # Tools are invoked concurrently in each branch
 
+models:
+  gemini:
+    provider: gemini
+    model: gemini-flash-latest
+    max_tokens: 8000
+  openai:
+    provider: openai
+    model: gpt-4o-mini
+    max_tokens: 4096
+
+provider: gemini
+
 agents:
   - id: python_researcher
     role: Python Research Analyst

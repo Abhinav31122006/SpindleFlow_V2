@@ -1,0 +1,75 @@
+#!/bin/bash
+
+# Test SpindleFlow with both Gemini and OpenAI providers
+
+echo "=========================================="
+echo "SpindleFlow - Multi-Provider Test Script"
+echo "=========================================="
+echo ""
+
+# Configuration
+CONFIG_FILE="configs/test-gemini-openai.yml"
+USER_INPUT="Research the impact of AI on software development"
+
+echo "📋 Configuration:"
+echo "  - Config File: $CONFIG_FILE"
+echo "  - User Input: $USER_INPUT"
+echo ""
+
+# Test 1: Gemini
+echo "=========================================="
+echo "TEST 1: Running with GEMINI provider"
+echo "=========================================="
+echo ""
+echo "Command: LLM_PROVIDER=gemini GEMINI_API_KEY=... npm run dev -- run $CONFIG_FILE -i \"$USER_INPUT\""
+echo ""
+echo "To run this test:"
+echo "  1. Set your GEMINI_API_KEY in the command or .env file"
+echo "  2. Run: LLM_PROVIDER=gemini npm run dev -- run $CONFIG_FILE -i \"$USER_INPUT\""
+echo ""
+echo "Or with API key in .env:"
+echo "  npm run dev -- run $CONFIG_FILE -i \"$USER_INPUT\""
+echo ""
+
+# Test 2: OpenAI
+echo "=========================================="
+echo "TEST 2: Running with OPENAI provider"
+echo "=========================================="
+echo ""
+echo "Command: LLM_PROVIDER=openai OPENAI_API_KEY=... npm run dev -- run $CONFIG_FILE -i \"$USER_INPUT\""
+echo ""
+echo "To run this test:"
+echo "  1. Set your OPENAI_API_KEY in the command or .env file"
+echo "  2. Run: LLM_PROVIDER=openai npm run dev -- run $CONFIG_FILE -i \"$USER_INPUT\""
+echo ""
+echo "Or with API key in .env:"
+echo "  LLM_PROVIDER=openai npm run dev -- run $CONFIG_FILE -i \"$USER_INPUT\""
+echo ""
+
+# Test 3: Invalid provider (should fail)
+echo "=========================================="
+echo "TEST 3: Testing invalid provider rejection"
+echo "=========================================="
+echo ""
+echo "Command: LLM_PROVIDER=anthropic npm run dev -- run $CONFIG_FILE -i \"$USER_INPUT\""
+echo ""
+echo "Expected: Error - 'Unsupported LLM provider: anthropic. Supported providers: openai, gemini'"
+echo ""
+echo "To run this test:"
+echo "  LLM_PROVIDER=anthropic npm run dev -- run $CONFIG_FILE -i \"$USER_INPUT\""
+echo ""
+
+echo "=========================================="
+echo "Setup Instructions:"
+echo "=========================================="
+echo ""
+echo "1. Create a .env file with your API keys:"
+echo "   cp .env.example .env"
+echo "   # Edit .env and add your API keys"
+echo ""
+echo "2. For Gemini:"
+echo "   GEMINI_API_KEY=your_gemini_key_here"
+echo ""
+echo "3. For OpenAI:"
+echo "   OPENAI_API_KEY=your_openai_key_here"
+echo ""

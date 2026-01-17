@@ -8,6 +8,15 @@ export const AgentSchema = z.object({
   tools: z.array(z.string()).optional(),
 });
 
+// Model configuration schema
+export const ModelConfigSchema = z.object({
+  provider: z.enum(["openai", "gemini"]),
+  model: z.string().min(1),
+  max_tokens: z.number().int().positive(),
+});
+
+export type ModelConfig = z.infer<typeof ModelConfigSchema>;
+
 const SequentialWorkflowSchema = z.object({
   type: z.literal("sequential"),
   steps: z.array(
@@ -32,8 +41,16 @@ export const WorkflowSchema = z.discriminatedUnion("type", [
 ]);
 
 export const RootConfigSchema = z.object({
+  models: z.record(z.string(), ModelConfigSchema),
+  provider: z.string().min(1),
   agents: z.array(AgentSchema).min(1),
   workflow: WorkflowSchema,
-});
+}).refine(
+  (config) => config.provider in config.models,
+  {
+    message: "provider must reference an existing model in the models section",
+    path: ["provider"],
+  }
+);
 
 export type RootConfig = z.infer<typeof RootConfigSchema>;

@@ -1,20 +1,20 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import OpenAI from "openai";
 import { LLMProvider, LLMGenerateParams } from "./provider";
 import { RateLimiter } from "./rate-limiters";
 import { logLLMCall, llmLogger } from "../logger/enhanced-logger";
 
-export class GeminiProvider implements LLMProvider {
-  name = "gemini";
-  private client: GoogleGenerativeAI;
+export class OpenAIProvider implements LLMProvider {
+  name = "openai";
+  private client: OpenAI;
   private rateLimiter: RateLimiter;
   private model: string;
 
   constructor(apiKey: string, model?: string) {
-    llmLogger.info("🔧 Initializing Gemini Provider");
-    
+    llmLogger.info("🔧 Initializing OpenAI Provider");
+
     if (!apiKey) {
-      llmLogger.error("❌ GEMINI_API_KEY is not set");
-      throw new Error("GEMINI_API_KEY is not set");
+      llmLogger.error("❌ OPENAI_API_KEY is not set");
+      throw new Error("OPENAI_API_KEY is not set");
     }
 
     llmLogger.debug({
@@ -24,19 +24,19 @@ export class GeminiProvider implements LLMProvider {
       keyPreview: `${apiKey.substring(0, 8)}...`,
     }, "✅ API key found");
 
-    this.client = new GoogleGenerativeAI(apiKey);
-    this.model = model || "gemini-flash-latest";
-    
-    // Initialize rate limiter with 5 RPM
-    const rpm = parseInt(process.env.GEMINI_RPM || "5", 10);
+    this.client = new OpenAI({ apiKey });
+    this.model = model || "gpt-4o-mini";
+
+    // Initialize rate limiter with 3 RPM (conservative for OpenAI)
+    const rpm = parseInt(process.env.OPENAI_RPM || "3", 10);
     this.rateLimiter = new RateLimiter(rpm);
 
     llmLogger.info({
       event: "PROVIDER_INITIALIZED",
-      provider: "gemini",
+      provider: "openai",
       rateLimit: rpm,
       model: this.model,
-    }, "✅ Gemini Provider initialized");
+    }, "✅ OpenAI Provider initialized");
   }
 
   async generate(params: LLMGenerateParams): Promise<string> {
@@ -75,42 +75,28 @@ export class GeminiProvider implements LLMProvider {
       waitTime: Date.now() - startTime,
     }, `✅ Rate limit slot acquired for ${requestId}`);
 
-    // Create model
-    llmLogger.debug({
-      event: "MODEL_CREATION",
-      requestId,
-      model: this.model,
-    }, `🔨 Creating model instance for ${requestId}`);
-
-    const model = this.client.getGenerativeModel({
-      model: this.model,
-    });
-
-    // Prepare prompt
-    const fullPrompt = `${params.system}\n\n${params.user}`;
-    
-    llmLogger.debug({
-      event: "PROMPT_PREPARED",
-      requestId,
-      fullPromptLength: fullPrompt.length,
-      fullPrompt,
-    }, `📝 Full prompt prepared for ${requestId}`);
-
     try {
       // Make API call
       llmLogger.info({
         event: "API_CALL_START",
         requestId,
         timestamp: Date.now(),
-      }, `📡 Sending request to Gemini API (${requestId})`);
+      }, `📡 Sending request to OpenAI API (${requestId})`);
 
-      logLLMCall("gemini", requestId, {
+      logLLMCall("openai", requestId, {
         systemLength: params.system.length,
         userLength: params.user.length,
         temperature: params.temperature,
       }, "REQUEST");
 
-      const result = await model.generateContent(fullPrompt);
+      const response = await this.client.chat.completions.create({
+        model: this.model,
+        messages: [
+          { role: "system", content: params.system },
+          { role: "user", content: params.user },
+        ],
+        temperature: params.temperature || 0.7,
+      });
 
       const apiCallDuration = Date.now() - startTime;
 
@@ -119,10 +105,10 @@ export class GeminiProvider implements LLMProvider {
         requestId,
         duration: apiCallDuration,
         timestamp: Date.now(),
-      }, `✅ Received response from Gemini API (${requestId}) in ${apiCallDuration}ms`);
+      }, `✅ Received response from OpenAI API (${requestId}) in ${apiCallDuration}ms`);
 
       // Extract response
-      const responseText = result.response.text();
+      const responseText = response.choices[0].message.content || "";
 
       llmLogger.debug({
         event: "RESPONSE_EXTRACTED",
@@ -131,7 +117,7 @@ export class GeminiProvider implements LLMProvider {
         response: responseText,
       }, `📄 Response text extracted for ${requestId}`);
 
-      logLLMCall("gemini", requestId, {
+      logLLMCall("openai", requestId, {
         responseLength: responseText.length,
         duration: apiCallDuration,
         response: responseText,
@@ -160,7 +146,7 @@ export class GeminiProvider implements LLMProvider {
         stack: error instanceof Error ? error.stack : undefined,
       }, `❌ Error in LLM generation (${requestId})`);
 
-      logLLMCall("gemini", requestId, {
+      logLLMCall("openai", requestId, {
         error: error instanceof Error ? error.message : String(error),
         duration: errorDuration,
       }, "ERROR");

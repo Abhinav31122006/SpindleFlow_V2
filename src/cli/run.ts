@@ -138,17 +138,20 @@ export async function runCommand(
       event: "CONTEXT_INITIALIZED",
     }, `✅ Context store initialized`);
 
-    // 6. Select LLM provider
+    // 6. Select LLM provider and model
     configLogger.info({
       event: "LLM_PROVIDER_SELECT_START",
-    }, `🤖 Selecting LLM provider`);
+      modelKey: parsed.provider,
+    }, `🤖 Selecting LLM provider: ${parsed.provider}`);
 
-    const llm = getLLMProvider({ apiKey });
+    const modelConfig = parsed.models[parsed.provider];
+    const llm = getLLMProvider(modelConfig, { apiKey });
 
     configLogger.info({
       event: "LLM_PROVIDER_SELECTED",
       provider: llm.name,
-    }, `✅ LLM provider selected: ${llm.name}`);
+      model: modelConfig.model,
+    }, `✅ LLM provider selected: ${llm.name} (${modelConfig.model})`);
 
     // 7. Print workflow start
     printWorkflowStart(userInput);
