@@ -1,0 +1,50 @@
+agents:
+  - id: backend
+    role: Backend Developer
+    goal: |
+      Design a REST API backend architecture. Include:
+      - API endpoint definitions
+      - Database schema design
+      - Authentication strategy
+      - Key backend technologies
+      Be specific and technical.
+
+  - id: frontend
+    role: Frontend Developer
+    goal: |
+      Design a frontend architecture. Include:
+      - UI component structure
+      - State management approach
+      - Key frontend technologies
+      - User interface considerations
+      Be specific and technical.
+
+  - id: reviewer
+    role: Technical Reviewer
+    goal: |
+      Review the backend and frontend designs carefully.
+      
+      If both designs are complete, well-integrated, and meet quality standards, 
+      start your response with "APPROVED".
+      
+      If improvements are needed, provide specific feedback for each agent:
+      - Use clear section headers like "Backend:" or "Frontend:"
+      - List concrete, actionable improvements
+      - Be specific about what needs to change
+      
+      Focus on: completeness, integration between components, technical feasibility, and best practices.
+
+workflow:
+  type: parallel
+  branches:
+    - backend
+    - frontend
+  then:
+    agent: reviewer
+    feedback_loop:
+      enabled: true
+      max_iterations: 3
+      approval_keyword: "APPROVED"
+      feedback_targets:
+        - backend
+        - frontend

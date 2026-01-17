@@ -318,3 +318,43 @@ function formatOutput(output: string): string {
     .map(line => `  ${line}`)
     .join("\n");
 }
+
+export function printFeedbackIteration(iteration: number, maxIterations: number) {
+  console.log(`\n${"═".repeat(80)}`);
+  console.log(`${colors.bright}${colors.yellow}🔄 FEEDBACK ITERATION ${iteration}/${maxIterations}${colors.reset}`);
+  console.log(`${"═".repeat(80)}\n`);
+}
+
+export function printFeedbackSummary(agentId: string, role: string, feedback: string) {
+  console.log(`  ${colors.cyan}📝 Feedback for ${colors.bright}${role}${colors.reset}${colors.cyan} (${agentId})${colors.reset}:`);
+  const lines = feedback.split('\n');
+  lines.forEach(line => {
+    console.log(`     ${colors.gray}${line}${colors.reset}`);
+  });
+  console.log();
+}
+
+export function printApprovalStatus(approved: boolean, iteration: number) {
+  if (approved) {
+    console.log(`\n  ${colors.bright}${colors.green}✅ APPROVED${colors.reset} ${colors.gray}after ${iteration} iteration(s)${colors.reset}\n`);
+  } else {
+    console.log(`\n  ${colors.yellow}⏭️  Proceeding to next iteration...${colors.reset}\n`);
+  }
+}
+
+export function printRevisionStart(agentCount: number, iteration: number) {
+  console.log(`${colors.bright}${colors.cyan}┌─ REVISIONS (Iteration ${iteration}) ────────────────────────────────────┐${colors.reset}`);
+  console.log(`  ${colors.dim}🔄 ${agentCount} agent(s) incorporating feedback...${colors.reset}`);
+}
+
+export function printRevisionComplete(agentId: string, role: string) {
+  console.log(`  ${colors.green}✓${colors.reset} ${role} ${colors.gray}(${agentId})${colors.reset} revision complete`);
+}
+
+export function printRevisionEnd() {
+  console.log(`${colors.bright}${colors.cyan}└──────────────────────────────────────────────────────────────────────────┘${colors.reset}\n`);
+}
+
+export function printMaxIterationsReached(maxIterations: number) {
+  console.log(`\n${colors.bright}${colors.yellow}⚠️  Max iterations (${maxIterations}) reached without approval${colors.reset}\n`);
+}

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { FeedbackLoopSchema } from "./feedback-schema";
 
 export const AgentSchema = z.object({
   id: z.string().min(1),
@@ -21,6 +22,7 @@ const ParallelWorkflowSchema = z.object({
   branches: z.array(z.string().min(1)).min(1),
   then: z.object({
     agent: z.string().min(1),
+    feedback_loop: FeedbackLoopSchema.optional(),
   }),
 });
 

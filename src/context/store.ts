@@ -1,5 +1,6 @@
 import { logContextUpdate, logDataTransfer, contextLogger } from "../logger/enhanced-logger";
 import { ContextSummary } from "./types";
+import { FeedbackIteration } from "../config/feedback-schema";
 
 export type TimelineEntry = {
   agentId: string;
@@ -10,6 +11,7 @@ export type TimelineEntry = {
   branchId?: string;        // e.g. "branch-1"
   branchIndex?: number;     // e.g. 1
   isAggregator?: boolean;   // true only for aggregator
+  iteration?: number;       // for feedback loops
 };
 
 export class ContextStore {
@@ -17,6 +19,8 @@ export class ContextStore {
   public outputs: Record<string, string> = {};
   public timeline: TimelineEntry[] = [];
   private summaries: Map<string, ContextSummary> = new Map();
+  private feedbackIterations: FeedbackIteration[] = [];
+  private revisions: Map<string, Map<number, string>> = new Map();
 
   constructor(userInput: string) {
     this.userInput = userInput;
@@ -251,5 +255,68 @@ export class ContextStore {
     );
 
     return summaries;
+  }
+
+  addFeedbackIteration(iteration: FeedbackIteration): void {
+    contextLogger.info({
+      event: "FEEDBACK_ITERATION_ADD",
+      iteration: iteration.iteration,
+      approved: iteration.approved,
+    }, `🔄 Recording feedback iteration ${iteration.iteration} (${iteration.approved ? 'APPROVED' : 'NEEDS REVISION'})`);
+
+    this.feedbackIterations.push(iteration);
+
+    logDataTransfer(
+      "FeedbackProcessor",
+      "ContextStore.feedbackIterations",
+      iteration,
+      "explicit"
+    );
+  }
+
+  setRevision(agentId: string, iteration: number, output: string): void {
+    contextLogger.info({
+      event: "REVISION_SET",
+      agentId,
+      iteration,
+      outputLength: output.length,
+    }, `📝 Storing revision for ${agentId} (iteration ${iteration})`);
+
+    if (!this.revisions.has(agentId)) {
+      this.revisions.set(agentId, new Map());
+    }
+    this.revisions.get(agentId)!.set(iteration, output);
+
+    logDataTransfer(
+      agentId,
+      "ContextStore.revisions",
+      { iteration, output },
+      "explicit"
+    );
+  }
+
+  getIterationHistory(): FeedbackIteration[] {
+    contextLogger.debug({
+      event: "GET_ITERATION_HISTORY",
+      count: this.feedbackIterations.length,
+    }, `📚 Retrieved iteration history: ${this.feedbackIterations.length} iterations`);
+
+    return this.feedbackIterations;
+  }
+
+  getRevision(agentId: string, iteration: number): string | undefined {
+    const agentRevisions = this.revisions.get(agentId);
+    if (!agentRevisions) return undefined;
+
+    const revision = agentRevisions.get(iteration);
+    
+    contextLogger.debug({
+      event: "GET_REVISION",
+      agentId,
+      iteration,
+      found: revision !== undefined,
+    }, `🔍 Retrieved revision for ${agentId} iteration ${iteration}`);
+
+    return revision;
   }
 }

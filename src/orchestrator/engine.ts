@@ -4,6 +4,8 @@ import { ContextStore } from "../context/store";
 import { LLMProvider } from "../llm/provider";
 import { runSequentialWorkflow } from "./sequential";
 import { runParallelWorkflow } from "./parallel";
+import { runIterativeParallelWorkflow } from "./parallel-iterative";
+import { orchestratorLogger } from "../logger/enhanced-logger";
 
 export async function runWorkflow(params: {
   config: RootConfig;
@@ -23,12 +25,38 @@ export async function runWorkflow(params: {
   }
 
   if (config.workflow.type === "parallel") {
-    await runParallelWorkflow({
-      branches: config.workflow.branches,
-      then: config.workflow.then,
-      registry,
-      context,
-      llm,
-    });
+    const feedbackLoop = config.workflow.then.feedback_loop;
+
+    if (feedbackLoop?.enabled) {
+      orchestratorLogger.info({
+        event: "WORKFLOW_TYPE_SELECTED",
+        type: "parallel-iterative",
+        maxIterations: feedbackLoop.max_iterations,
+      }, `🔄 Using iterative parallel workflow (feedback loop enabled)`);
+
+      await runIterativeParallelWorkflow({
+        branches: config.workflow.branches,
+        then: {
+          agent: config.workflow.then.agent,
+          feedback_loop: feedbackLoop,
+        },
+        registry,
+        context,
+        llm,
+      });
+    } else {
+      orchestratorLogger.info({
+        event: "WORKFLOW_TYPE_SELECTED",
+        type: "parallel",
+      }, `⚡ Using standard parallel workflow`);
+
+      await runParallelWorkflow({
+        branches: config.workflow.branches,
+        then: config.workflow.then,
+        registry,
+        context,
+        llm,
+      });
+    }
   }
 }

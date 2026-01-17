@@ -1,0 +1,25 @@
+agents:
+  - id: planner
+    role: Event Planner
+    goal: Create a simple 3-step plan for the user's request. Be brief (2-3 sentences max).
+
+  - id: checker
+    role: Quality Checker
+    goal: |
+      Review the plan briefly.
+      
+      If the plan has 3 clear steps, start with "APPROVED".
+      Otherwise say "Planner: Please ensure there are exactly 3 steps" and nothing more.
+
+workflow:
+  type: parallel
+  branches:
+    - planner
+  then:
+    agent: checker
+    feedback_loop:
+      enabled: true
+      max_iterations: 2
+      approval_keyword: "APPROVED"
+      feedback_targets:
+        - planner
