@@ -2,7 +2,7 @@
 import { Command } from "commander";
 import * as dotenv from "dotenv";
 import { runCommand } from "./cli/run";
-
+import { startDashboardServer } from "./server/dashboard-server";
 
 dotenv.config();
 
@@ -17,7 +17,13 @@ program
   .argument("<config>", "Path to workflow YAML file")
   .option("-i, --input <input>", "User input", "")
   .option("--api-key <key>", "LLM API key")
+  .option("--dashboard", "Start web dashboard", false)
   .action(async (config, options) => {
+    // Start dashboard if requested
+    if (options.dashboard) {
+      await startDashboardServer();
+    }
+    
     await runCommand(config, options.input, options.apiKey);
   });
 

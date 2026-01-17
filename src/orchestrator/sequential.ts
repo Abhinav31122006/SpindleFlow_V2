@@ -15,6 +15,8 @@ import {
 import { SubAgentExecutor } from "../agents/sub-agent-executor";
 import { PersistentMemoryManager, createEmbedding } from "../memory/persistent-memory";
 import { v4 as uuidv4 } from 'uuid';
+import { terminalUI } from "../visualization/terminal-ui";
+import { getDashboardServer } from "../server/dashboard-server";
 
 export async function runSequentialWorkflow(params: {
   steps: { agent: string }[];
@@ -32,6 +34,19 @@ export async function runSequentialWorkflow(params: {
   
   // Initialize sub-agent executor
   const subAgentExecutor = new SubAgentExecutor(llm, mcpRegistry, memoryManager);
+
+  const workflowStartTime = Date.now();
+
+  // Start workflow UI
+  terminalUI.startWorkflow('sequential', steps.length);
+
+  // Send event to dashboard
+  const dashboard = getDashboardServer();
+  dashboard.sendEvent({
+    type: 'workflow_start',
+    timestamp: Date.now(),
+    data: { type: 'sequential', totalSteps: steps.length }
+  });
 
   orchestratorLogger.info({
     event: "SEQUENTIAL_WORKFLOW_START",
@@ -76,6 +91,16 @@ export async function runSequentialWorkflow(params: {
       goal: agent.goal,
     }, `✅ Agent found: ${agent.role}`);
 
+    // Start agent UI
+    terminalUI.startAgent(agent.id, agent.role, stepNumber, steps.length);
+
+    // Send to dashboard
+    dashboard.sendEvent({
+      type: 'agent_start',
+      timestamp: Date.now(),
+      data: { agentId: agent.id, role: agent.role, stepNumber, totalSteps: steps.length }
+    });
+
     // Print start message
     printAgentStart(agent.id, agent.role);
     logAgentExecution(agent.id, agent.role, "START", {
@@ -84,6 +109,8 @@ export async function runSequentialWorkflow(params: {
     });
 
     const startedAt = Date.now();
+    terminalUI.updateAgentProgress(agent.id, 'PROCESSING', 'Preparing agent execution');
+
     orchestratorLogger.debug({
       event: "AGENT_EXECUTION_START",
       stepNumber,
@@ -144,6 +171,7 @@ export async function runSequentialWorkflow(params: {
     let relevantMemories: import("../memory/persistent-memory").RelevantMemory[] = [];
     if (agent.enable_persistent_memory && memoryManager?.isInitialized()) {
       try {
+        terminalUI.updateAgentProgress(agent.id, 'QUERYING', 'Searching persistent memory');
         const queryText = `${agent.role}: ${agent.goal}`;
         orchestratorLogger.info({
           event: "QUERYING_PERSISTENT_MEMORY",
@@ -153,6 +181,14 @@ export async function runSequentialWorkflow(params: {
         }, `🔍 Querying persistent memory for: ${agent.id}`);
 
         relevantMemories = await memoryManager.queryMemoriesWithText(queryText, 5);
+
+        terminalUI.showMemoryQuery(agent.id, relevantMemories.length, relevantMemories[0]?.score);
+
+        dashboard.sendEvent({
+          type: 'memory_query',
+          timestamp: Date.now(),
+          data: { agentId: agent.id, count: relevantMemories.length, topScore: relevantMemories[0]?.score || 0 }
+        });
 
         if (relevantMemories.length > 0) {
           orchestratorLogger.info({
@@ -164,6 +200,7 @@ export async function runSequentialWorkflow(params: {
           }, `✅ Found ${relevantMemories.length} relevant memories (top score: ${(relevantMemories[0]?.score || 0).toFixed(3)})`);
         }
       } catch (error) {
+        terminalUI.showMemoryQuery(agent.id, 0);
         orchestratorLogger.warn({
           event: "PERSISTENT_MEMORY_QUERY_ERROR",
           stepNumber,
@@ -238,6 +275,7 @@ export async function runSequentialWorkflow(params: {
       // Normal agent without sub-agents - proceed with standard execution
 
     // Call LLM
+    terminalUI.updateAgentProgress(agent.id, 'LLM_CALL', 'Calling language model');
     logAgentExecution(agent.id, agent.role, "PROCESSING", {
       stepNumber,
       promptLengths: {
@@ -403,6 +441,7 @@ export async function runSequentialWorkflow(params: {
       // Store in persistent memory if enabled
       if (agent.enable_persistent_memory && memoryManager?.isInitialized()) {
         try {
+          terminalUI.updateAgentProgress(agent.id, 'STORING', 'Saving to persistent memory');
           orchestratorLogger.info({
             event: "STORING_PERSISTENT_MEMORY",
             stepNumber,
@@ -432,12 +471,20 @@ export async function runSequentialWorkflow(params: {
             embedding
           );
 
+          terminalUI.showMemoryStore(agent.id, true);
+
+          dashboard.sendEvent({
+            type: 'memory_store',
+            timestamp: Date.now(),
+            data: { agentId: agent.id, success: true }
+          });
           orchestratorLogger.info({
             event: "PERSISTENT_MEMORY_STORED",
             stepNumber,
             agentId: agent.id,
           }, `✅ Persistent memory stored for: ${agent.id}`);
         } catch (error) {
+          terminalUI.showMemoryStore(agent.id, false);
           orchestratorLogger.error({
             event: "PERSISTENT_MEMORY_ERROR",
             stepNumber,
@@ -447,6 +494,7 @@ export async function runSequentialWorkflow(params: {
         }
       }
     } catch (error) {
+      terminalUI.showError(agent.id, error instanceof Error ? error.message : String(error));
       orchestratorLogger.error({
         event: "SUMMARY_CREATION_ERROR",
         stepNumber,
@@ -458,6 +506,16 @@ export async function runSequentialWorkflow(params: {
     // Print completion message
     printAgentComplete(entry);
 
+    // Complete agent UI
+    terminalUI.completeAgent(agent.id, duration, output.length);
+
+    // Send to dashboard
+    dashboard.sendEvent({
+      type: 'agent_complete',
+      timestamp: Date.now(),
+      data: { agentId: agent.id, duration, outputLength: output.length }
+    });
+
     orchestratorLogger.info({
       event: "STEP_COMPLETE",
       stepNumber,
@@ -467,6 +525,18 @@ export async function runSequentialWorkflow(params: {
       remainingSteps: steps.length - stepNumber,
     }, `✅ Step ${stepNumber}/${steps.length} complete (${steps.length - stepNumber} remaining)`);
   }
+
+  const workflowDuration = Date.now() - workflowStartTime;
+
+  // Complete workflow UI
+  terminalUI.completeWorkflow(workflowDuration, steps.length);
+
+  // Send to dashboard
+  dashboard.sendEvent({
+    type: 'workflow_end',
+    timestamp: Date.now(),
+    data: { duration: workflowDuration, agentCount: steps.length }
+  });
 
   orchestratorLogger.info({
     event: "SEQUENTIAL_WORKFLOW_COMPLETE",
