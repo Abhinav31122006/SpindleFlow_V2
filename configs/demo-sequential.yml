@@ -10,18 +10,28 @@ models:
 
 provider: gemini
 
+# Pinecone persistent memory configuration
+pinecone_config:
+  index_name: "spindleflow-sequential"
+  namespace: "sequential-workflow"
+  embedding_provider: "local"  # Uses local sentence transformers (no API calls)
+  dimension: 384  # all-MiniLM-L6-v2 dimension
+
 agents:
   - id: architect
     role: System Architect
     goal: Break down the problem and propose a high-level system architecture
+    enable_persistent_memory: true
 
   - id: engineer
     role: Software Engineer
     goal: Translate the architecture into concrete components and data flows
+    enable_persistent_memory: true
 
   - id: reviewer
     role: Technical Reviewer
     goal: Review the proposed system, highlight risks, and suggest improvements
+    enable_persistent_memory: true
 
 workflow:
   type: sequential
